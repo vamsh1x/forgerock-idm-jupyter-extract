@@ -1,50 +1,49 @@
-# ForgeRock / PingIDM Jupyter Bulk Extractor
+# ForgeRock / PingIDM Jupyter Toolkit
 
-Pull millions of records out of PingIDM / ForgeRock IDM from a Jupyter notebook —
-concurrent threads, rich progress bars, then straight into a pandas DataFrame
-for analysis.
+Jupyter notebooks + a small Python library for pulling and analyzing
+identity data at production scale: ForgeRock / PingIDM extraction,
+Twilio OTP cost analysis, and Splunk log analysis for root cause.
 
-## How it works
+## Notebooks
 
-1. **Input CSV** with one identifier per row (e.g. `userName`).
-2. `ThreadPoolExecutor` fans out `GET managed/user/<id>?_fields=...` calls —
-   connection pooling, automatic retry on 429/5xx, and a cross-thread rate
-   limiter so the pool doesn't trip the server throttle.
-3. Each requested field becomes a column in the **output CSV** (per-record
-   failures are captured in an `_error` column, never fatal).
-4. The output CSV loads straight into a **pandas DataFrame** for analysis:
-   field completeness, duplicate/fake-profile detection, top values.
+- `notebooks/idm_bulk_extract.ipynb` — Bulk-pull millions of IDM records: input CSV of ids to ThreadPoolExecutor GETs (requests + urllib.parse + urllib3 retries + cross-thread rate limiter), rich execution-summary / failure-breakdown tables, success/failed/metadata outputs (JSON + CSV), then a pandas DataFrame for identity-resolution analysis (duplicates, fake profiles).
+- `notebooks/twilio_otp_analysis.ipynb` — Pull Twilio SMS logs via the REST API (paginated), then analyze OTP spend: cost by day, burst detection (same number, 3+ OTPs in 5 min = the classic AM-tree re-entry bug), delivery health, hourly patterns.
+- `notebooks/splunk_data_analysis.ipynb` — Run SPL through the Splunk Python SDK, load results into pandas, and root-cause: top failure reasons, most-affected users, per-hour spikes; reusable patterns for recon failures, slow IDM queries, OTP storms.
 
 ## Libraries in play
 
-- **requests** — HTTP session, urllib3 retry adapter
-- **urllib** — `urllib.parse` for safe, encoded URL building
+- **requests** — HTTP sessions, retry adapters
+- **urllib** — `urllib.parse` for safe, encoded URL building and pagination
 - **concurrent.futures** — `ThreadPoolExecutor` multithreading
-- **rich** — live progress bars in the notebook
+- **rich** — progress output and summary tables
+- **tqdm** — progress bars over thread pools
 - **pandas** — DataFrame analysis
+- **twilio** / **splunk-sdk** — vendor APIs for the OTP and log notebooks
 
 ## Quick start
 
 ```bash
 pip install -r requirements.txt
-cp notebooks/idm_config.example.json notebooks/idm_config.json   # fill in real values
-jupyter notebook notebooks/idm_bulk_extract.ipynb
+# credentials come from environment variables — never hardcode them
+export IDM_USERNAME=... IDM_PASSWORD=...
+export TWILIO_ACCOUNT_SID=... TWILIO_AUTH_TOKEN=...
+export SPLUNK_HOST=... SPLUNK_USERNAME=... SPLUNK_PASSWORD=...
+jupyter notebook notebooks/
 ```
-
-Open `notebooks/idm_bulk_extract.ipynb`, set your `base_url`, credentials,
-resource, input CSV, and the fields you want — then run all cells.
 
 ## Files
 
-- `notebooks/idm_bulk_extract.ipynb` — the full workflow
+- `notebooks/idm_bulk_extract.ipynb` — concurrent IDM extraction + duplicate analysis
+- `notebooks/twilio_otp_analysis.ipynb` — OTP cost + burst/root-cause analysis
+- `notebooks/splunk_data_analysis.ipynb` — Splunk SDK log analysis for root cause
 - `notebooks/idm_config.example.json` — fake config template (never commit the real one)
 - `notebooks/input_ids.example.csv` — fake input ids
 - `idm_pull/client.py` — thread-safe IDM client (requests + urllib3 retry + rate limit)
-- `idm_pull/extract.py` — ThreadPoolExecutor engine, input CSV → output CSV → DataFrame
+- `idm_pull/extract.py` — env-driven ThreadPoolExecutor pipeline: fetch, JSON/CSV outputs, DataFrame
 - `idm_pull/analysis.py` — starter analysis: completeness, duplicates, top values, errors
 
 ## Safety
 
-- The `.gitignore` excludes `*_config.json`, `idm_extract.csv`, and real journals.
+- The `.gitignore` excludes `*_config.json`, `idm_extract.csv`, `.env` files, and output folders.
 - Everything here is example data. Use service accounts with least privilege
   and respect your IDM's rate limits.
