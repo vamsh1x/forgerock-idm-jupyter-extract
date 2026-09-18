@@ -1,5 +1,9 @@
 requests>=2.31
 pandas>=2.0
 rich>=13.0
+tqdm>=4.66
 jupyter>=1.0
 urllib3>=2.0
+python-dotenv>=1.0
+twilio>=9.0
+splunk-sdk>=2.0
