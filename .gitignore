@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*idm_config.json
+idm_extract.csv
+*.journal.jsonl
+.DS_Store
